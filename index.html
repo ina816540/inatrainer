@@ -1,1 +1,825 @@
-a
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>INA TRAINER — Entrenador FPS 3D</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #05080f;
+  --panel: #0a1020;
+  --border: #0d2040;
+  --accent: #e040fb;
+  --accent2: #ff3d71;
+  --accent3: #00e5ff;
+  --green: #00ff88;
+  --text: #dce8ff;
+  --dim: #3a4a6a;
+}
+
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Share Tech Mono', monospace;
+  overflow-x: hidden;
+  cursor: none;
+}
+
+/* CUSTOM CURSOR */
+#cursor {
+  position: fixed;
+  width: 20px;
+  height: 20px;
+  pointer-events: none;
+  z-index: 9999;
+  transform: translate(-50%, -50%);
+  transition: transform 0.08s ease;
+}
+#cursor::before {
+  content: '';
+  position: absolute;
+  inset: 8px;
+  background: var(--accent);
+  border-radius: 50%;
+  box-shadow: 0 0 10px var(--accent);
+}
+#cursor::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 1px solid rgba(224,64,251,0.5);
+  border-radius: 50%;
+  animation: cursor-pulse 2s infinite;
+}
+@keyframes cursor-pulse {
+  0%,100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.5); opacity: 0.3; }
+}
+#cursor.clicking { transform: translate(-50%,-50%) scale(0.7); }
+
+/* NOISE OVERLAY */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.4;
+}
+
+/* SCANLINES */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px);
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* NAV */
+nav {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 100;
+  padding: 18px 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(180deg, rgba(5,8,15,0.98) 0%, transparent 100%);
+  border-bottom: 1px solid rgba(224,64,251,0.08);
+}
+.nav-logo {
+  font-family: 'Orbitron', monospace;
+  font-size: 1.1rem;
+  font-weight: 900;
+  letter-spacing: 0.3em;
+  color: var(--accent);
+  text-shadow: 0 0 20px rgba(224,64,251,0.5);
+}
+.nav-links {
+  display: flex;
+  gap: 32px;
+  list-style: none;
+}
+.nav-links a {
+  font-size: 0.6rem;
+  letter-spacing: 0.3em;
+  color: var(--dim);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+.nav-links a:hover { color: var(--accent3); }
+.nav-dl {
+  font-family: 'Orbitron', monospace;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: #000;
+  background: var(--accent);
+  border: none;
+  padding: 9px 22px;
+  clip-path: polygon(7px 0,100% 0,calc(100% - 7px) 100%,0 100%);
+  cursor: none;
+  transition: box-shadow 0.2s;
+  text-decoration: none;
+}
+.nav-dl:hover { box-shadow: 0 0 25px rgba(224,64,251,0.6); }
+
+/* HERO */
+#hero {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  overflow: hidden;
+  padding: 120px 24px 80px;
+}
+
+/* GRID BG */
+.grid-bg {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(224,64,251,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(224,64,251,0.04) 1px, transparent 1px);
+  background-size: 60px 60px;
+  animation: grid-shift 20s linear infinite;
+}
+@keyframes grid-shift {
+  0% { transform: perspective(600px) rotateX(20deg) translateY(0); }
+  100% { transform: perspective(600px) rotateX(20deg) translateY(60px); }
+}
+.grid-fade {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 40%, transparent 20%, var(--bg) 75%);
+}
+
+/* PARTICLES */
+.particles {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+.particle {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  background: var(--accent);
+  border-radius: 50%;
+  animation: float-particle linear infinite;
+  opacity: 0;
+}
+@keyframes float-particle {
+  0% { transform: translateY(100vh) scale(0); opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { transform: translateY(-100px) scale(1); opacity: 0; }
+}
+
+/* GLOW ORBS */
+.orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  pointer-events: none;
+}
+.orb-1 { width: 500px; height: 500px; background: rgba(224,64,251,0.08); top: -100px; left: -150px; animation: orb-drift 12s ease-in-out infinite alternate; }
+.orb-2 { width: 400px; height: 400px; background: rgba(0,229,255,0.06); bottom: -50px; right: -100px; animation: orb-drift 15s ease-in-out infinite alternate-reverse; }
+.orb-3 { width: 300px; height: 300px; background: rgba(255,61,113,0.05); top: 50%; left: 50%; transform: translate(-50%,-50%); animation: orb-pulse 8s ease-in-out infinite; }
+@keyframes orb-drift { from { transform: translate(0,0); } to { transform: translate(40px, 30px); } }
+@keyframes orb-pulse { 0%,100% { transform: translate(-50%,-50%) scale(1); opacity: 0.5; } 50% { transform: translate(-50%,-50%) scale(1.3); opacity: 1; } }
+
+/* HERO CONTENT */
+.hero-tag {
+  font-size: 0.6rem;
+  letter-spacing: 0.5em;
+  color: var(--accent);
+  border: 1px solid rgba(224,64,251,0.3);
+  padding: 5px 16px;
+  clip-path: polygon(6px 0,100% 0,calc(100% - 6px) 100%,0 100%);
+  margin-bottom: 28px;
+  animation: fade-up 0.6s ease 0.2s both;
+}
+
+.hero-title {
+  font-family: 'Orbitron', monospace;
+  font-size: clamp(3.5rem, 10vw, 9rem);
+  font-weight: 900;
+  letter-spacing: 0.15em;
+  line-height: 0.9;
+  margin-bottom: 8px;
+  animation: fade-up 0.6s ease 0.4s both;
+}
+.hero-title .line1 { color: var(--text); display: block; }
+.hero-title .line2 {
+  display: block;
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 50%, var(--accent3) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: gradient-shift 4s ease infinite alternate, fade-up 0.6s ease 0.4s both;
+  background-size: 200%;
+}
+@keyframes gradient-shift { 0% { background-position: 0%; } 100% { background-position: 100%; } }
+
+.hero-sub {
+  font-size: 0.75rem;
+  letter-spacing: 0.4em;
+  color: var(--dim);
+  margin: 24px 0 48px;
+  animation: fade-up 0.6s ease 0.6s both;
+}
+
+.hero-btns {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  flex-wrap: wrap;
+  animation: fade-up 0.6s ease 0.8s both;
+}
+
+.btn-primary {
+  font-family: 'Orbitron', monospace;
+  font-size: 0.85rem;
+  font-weight: 900;
+  letter-spacing: 0.2em;
+  color: #000;
+  background: var(--accent);
+  border: none;
+  padding: 16px 38px;
+  clip-path: polygon(10px 0,100% 0,calc(100% - 10px) 100%,0 100%);
+  cursor: none;
+  text-decoration: none;
+  transition: box-shadow 0.2s, transform 0.1s;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.btn-primary:hover {
+  box-shadow: 0 0 40px rgba(224,64,251,0.7), 0 0 80px rgba(224,64,251,0.3);
+  transform: translateY(-2px);
+}
+.btn-secondary {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.2em;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--border);
+  padding: 16px 28px;
+  clip-path: polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%);
+  cursor: none;
+  text-decoration: none;
+  transition: border-color 0.2s, color 0.2s;
+}
+.btn-secondary:hover { border-color: var(--accent3); color: var(--accent3); }
+
+/* DOWNLOAD BADGE */
+.dl-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.55rem;
+  letter-spacing: 0.3em;
+  color: var(--dim);
+  margin-top: 20px;
+  animation: fade-up 0.6s ease 1s both;
+}
+.dl-badge::before, .dl-badge::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+/* STATS BAR */
+.stats-bar {
+  position: relative;
+  z-index: 5;
+  display: flex;
+  gap: 0;
+  max-width: 700px;
+  width: 100%;
+  margin: 60px auto 0;
+  border: 1px solid var(--border);
+  clip-path: polygon(0 0,calc(100% - 12px) 0,100% 12px,100% 100%,12px 100%,0 calc(100% - 12px));
+  background: var(--panel);
+  animation: fade-up 0.6s ease 1.1s both;
+}
+.stat-item {
+  flex: 1;
+  padding: 18px 10px;
+  text-align: center;
+  border-right: 1px solid var(--border);
+}
+.stat-item:last-child { border-right: none; }
+.stat-num {
+  font-family: 'Orbitron', monospace;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--accent);
+  display: block;
+  text-shadow: 0 0 15px rgba(224,64,251,0.5);
+}
+.stat-lbl {
+  font-size: 0.48rem;
+  letter-spacing: 0.3em;
+  color: var(--dim);
+  margin-top: 4px;
+  display: block;
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* SECTION */
+section {
+  position: relative;
+  z-index: 5;
+  padding: 100px 48px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+.section-tag {
+  font-size: 0.55rem;
+  letter-spacing: 0.5em;
+  color: var(--accent);
+  margin-bottom: 10px;
+}
+.section-title {
+  font-family: 'Orbitron', monospace;
+  font-size: clamp(1.8rem, 4vw, 3rem);
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  margin-bottom: 16px;
+}
+.section-title span { color: var(--accent); }
+.section-sub {
+  font-size: 0.68rem;
+  letter-spacing: 0.15em;
+  color: var(--dim);
+  max-width: 500px;
+  line-height: 2;
+}
+
+/* MODES GRID */
+.modes-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-top: 48px;
+}
+@media(max-width:900px) { .modes-grid { grid-template-columns: repeat(2,1fr); } }
+@media(max-width:500px) { .modes-grid { grid-template-columns: 1fr; } }
+
+.mode-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  padding: 24px 18px;
+  clip-path: polygon(0 0,calc(100% - 10px) 0,100% 10px,100% 100%,10px 100%,0 calc(100% - 10px));
+  transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+.mode-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: var(--card-color, var(--accent));
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.3s;
+}
+.mode-card:hover { border-color: rgba(224,64,251,0.3); transform: translateY(-4px); box-shadow: 0 12px 40px rgba(0,0,0,0.4); }
+.mode-card:hover::before { transform: scaleX(1); }
+.mode-icon { font-size: 2rem; margin-bottom: 14px; display: block; }
+.mode-tag-lbl { font-size: 0.48rem; letter-spacing: 0.4em; color: var(--card-color, var(--accent)); margin-bottom: 5px; }
+.mode-name { font-family: 'Orbitron', monospace; font-size: 0.75rem; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+.mode-desc { font-size: 0.55rem; color: var(--dim); line-height: 1.8; }
+
+/* FEATURES */
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin-top: 48px;
+}
+@media(max-width:768px) { .features-grid { grid-template-columns: 1fr; } }
+
+.feature-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  padding: 28px 22px;
+  clip-path: polygon(0 0,calc(100% - 12px) 0,100% 12px,100% 100%,12px 100%,0 calc(100% - 12px));
+  transition: border-color 0.2s;
+}
+.feature-card:hover { border-color: rgba(0,229,255,0.2); }
+.feature-icon { font-size: 1.6rem; margin-bottom: 14px; }
+.feature-title { font-family: 'Orbitron', monospace; font-size: 0.72rem; font-weight: 700; color: var(--accent3); margin-bottom: 10px; letter-spacing: 0.1em; }
+.feature-desc { font-size: 0.58rem; color: var(--dim); line-height: 2; }
+
+/* DIVIDER */
+.divider {
+  position: relative;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 0 48px;
+  color: var(--border);
+  font-size: 0.5rem;
+  letter-spacing: 0.5em;
+}
+.divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+/* DOWNLOAD SECTION */
+#download {
+  position: relative;
+  z-index: 5;
+  padding: 100px 48px;
+  text-align: center;
+  overflow: hidden;
+}
+.dl-glow {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, rgba(224,64,251,0.07) 0%, transparent 65%);
+  pointer-events: none;
+}
+.dl-box {
+  background: var(--panel);
+  border: 1px solid rgba(224,64,251,0.2);
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 52px 44px;
+  clip-path: polygon(0 0,calc(100% - 20px) 0,100% 20px,100% 100%,20px 100%,0 calc(100% - 20px));
+  position: relative;
+}
+.dl-box::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  background: linear-gradient(135deg, rgba(224,64,251,0.3), transparent 50%, rgba(0,229,255,0.1));
+  clip-path: polygon(0 0,calc(100% - 20px) 0,100% 20px,100% 100%,20px 100%,0 calc(100% - 20px));
+  z-index: -1;
+}
+.dl-version { font-size: 0.55rem; letter-spacing: 0.4em; color: var(--green); margin-bottom: 10px; }
+.dl-title { font-family: 'Orbitron', monospace; font-size: 1.6rem; font-weight: 900; letter-spacing: 0.15em; color: var(--text); margin-bottom: 8px; }
+.dl-subtitle { font-size: 0.62rem; letter-spacing: 0.2em; color: var(--dim); margin-bottom: 36px; }
+.dl-btn {
+  font-family: 'Orbitron', monospace;
+  font-size: 1rem;
+  font-weight: 900;
+  letter-spacing: 0.2em;
+  color: #000;
+  background: linear-gradient(135deg, var(--accent), #a020d0);
+  border: none;
+  padding: 18px 52px;
+  clip-path: polygon(12px 0,100% 0,calc(100% - 12px) 100%,0 100%);
+  cursor: none;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  transition: box-shadow 0.2s, transform 0.15s;
+  animation: pulse-btn 3s ease-in-out infinite;
+}
+@keyframes pulse-btn {
+  0%,100% { box-shadow: 0 0 30px rgba(224,64,251,0.5); }
+  50% { box-shadow: 0 0 60px rgba(224,64,251,0.9), 0 0 120px rgba(224,64,251,0.3); }
+}
+.dl-btn:hover { transform: scale(1.04); }
+.dl-info {
+  display: flex;
+  gap: 24px;
+  justify-content: center;
+  margin-top: 24px;
+  flex-wrap: wrap;
+}
+.dl-info-item { font-size: 0.52rem; letter-spacing: 0.2em; color: var(--dim); }
+.dl-info-item span { color: var(--text); }
+
+/* FOOTER */
+footer {
+  position: relative;
+  z-index: 5;
+  border-top: 1px solid var(--border);
+  padding: 36px 48px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.footer-logo { font-family: 'Orbitron', monospace; font-size: 0.85rem; font-weight: 900; letter-spacing: 0.3em; color: var(--accent); }
+.footer-copy { font-size: 0.52rem; letter-spacing: 0.2em; color: var(--dim); }
+.footer-links { display: flex; gap: 20px; }
+.footer-links a { font-size: 0.52rem; letter-spacing: 0.2em; color: var(--dim); text-decoration: none; transition: color 0.2s; }
+.footer-links a:hover { color: var(--accent3); }
+
+/* SCROLL REVEAL */
+.reveal {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: opacity 0.7s ease, transform 0.7s ease;
+}
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* CORNER DECO */
+.corner-deco {
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  pointer-events: none;
+}
+.corner-deco.tl { top: 0; left: 0; border-top: 2px solid var(--accent); border-left: 2px solid var(--accent); }
+.corner-deco.tr { top: 0; right: 0; border-top: 2px solid var(--accent); border-right: 2px solid var(--accent); }
+.corner-deco.bl { bottom: 0; left: 0; border-bottom: 2px solid var(--accent); border-left: 2px solid var(--accent); }
+.corner-deco.br { bottom: 0; right: 0; border-bottom: 2px solid var(--accent); border-right: 2px solid var(--accent); }
+
+/* TICKER */
+.ticker-wrap {
+  position: relative;
+  z-index: 5;
+  background: rgba(224,64,251,0.06);
+  border-top: 1px solid rgba(224,64,251,0.1);
+  border-bottom: 1px solid rgba(224,64,251,0.1);
+  overflow: hidden;
+  padding: 12px 0;
+}
+.ticker {
+  display: flex;
+  gap: 60px;
+  white-space: nowrap;
+  animation: ticker 20s linear infinite;
+}
+.ticker-item { font-size: 0.58rem; letter-spacing: 0.3em; color: var(--dim); }
+.ticker-item span { color: var(--accent); }
+@keyframes ticker { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+</style>
+</head>
+<body>
+
+<div id="cursor"></div>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">INA TRAINER</div>
+  <ul class="nav-links">
+    <li><a href="#modos">MODOS</a></li>
+    <li><a href="#features">FEATURES</a></li>
+    <li><a href="#download">DESCARGAR</a></li>
+  </ul>
+  <a href="https://download938.mediafire.com/prxaox51vgig6roVLls1BuvcuNc7GrOBFBOmbejW0TF_tPCeUXhPrdJgQdnBFC-c8smTY--Vj0ZIi7VgFVJ3M7SWQtHbrjAeeC72kaBO6bvdG-CAs0Khqks-gWEnYVXhJo3aw_15G3y57wERVGoT12K4_Tk35BiqLwdCMbaO0uo/13c7d2820osk5ws/inalaucher.rar" class="nav-dl">▼ DESCARGAR</a>
+</nav>
+
+<!-- HERO -->
+<section id="hero">
+  <div class="grid-bg"></div>
+  <div class="grid-fade"></div>
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+  <div class="particles" id="particles"></div>
+
+  <div class="hero-tag">✦ ENTRENADOR FPS 3D · COMPETITIVO</div>
+  <h1 class="hero-title">
+    <span class="line1">INA</span>
+    <span class="line2">TRAINER</span>
+  </h1>
+  <p class="hero-sub">MEJORA TU PUNTERÍA · DOMINA EL META · COMPITE GLOBALMENTE</p>
+
+  <div class="hero-btns">
+    <a href="#download" class="btn-primary">
+      ⬇ DESCARGAR LAUNCHER
+    </a>
+    <a href="#modos" class="btn-secondary">VER MODOS DE ENTRENAMIENTO</a>
+  </div>
+
+  <div class="dl-badge">WINDOWS 10/11 · GRATIS</div>
+
+  <div class="stats-bar">
+    <div class="stat-item">
+      <span class="stat-num" id="counter-modes">8</span>
+      <span class="stat-lbl">MODOS DE JUEGO</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-num" id="counter-players">∞</span>
+      <span class="stat-lbl">JUGADORES</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-num" id="counter-scores">3</span>
+      <span class="stat-lbl">DIFICULTADES</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-num">100%</span>
+      <span class="stat-lbl">GRATIS</span>
+    </div>
+  </div>
+</section>
+
+<!-- TICKER -->
+<div class="ticker-wrap">
+  <div class="ticker">
+    <span class="ticker-item">✦ CLICKING <span>·</span></span>
+    <span class="ticker-item">FLICKING <span>·</span></span>
+    <span class="ticker-item">TRACKING <span>·</span></span>
+    <span class="ticker-item">MICRO SHOT <span>·</span></span>
+    <span class="ticker-item">GRIDSHOT <span>·</span></span>
+    <span class="ticker-item">STRAFE AIM <span>·</span></span>
+    <span class="ticker-item">WIDE ANGLE <span>·</span></span>
+    <span class="ticker-item">SUPERVIVENCIA <span>·</span></span>
+    <span class="ticker-item">✦ CLICKING <span>·</span></span>
+    <span class="ticker-item">FLICKING <span>·</span></span>
+    <span class="ticker-item">TRACKING <span>·</span></span>
+    <span class="ticker-item">MICRO SHOT <span>·</span></span>
+    <span class="ticker-item">GRIDSHOT <span>·</span></span>
+    <span class="ticker-item">STRAFE AIM <span>·</span></span>
+    <span class="ticker-item">WIDE ANGLE <span>·</span></span>
+    <span class="ticker-item">SUPERVIVENCIA <span>·</span></span>
+  </div>
+</div>
+
+<!-- MODOS -->
+<section id="modos">
+  <div class="reveal">
+    <div class="section-tag">◈ MODOS DE ENTRENAMIENTO</div>
+    <h2 class="section-title">8 MODOS PARA <span>DOMINAR</span></h2>
+    <p class="section-sub">Cada modo entrena una habilidad distinta. Desde reacción pura hasta seguimiento de objetivos en movimiento.</p>
+  </div>
+  <div class="modes-grid reveal">
+    <div class="mode-card" style="--card-color:#00e5ff">
+      <span class="mode-icon">🎯</span>
+      <div class="mode-tag-lbl">CLICKING</div>
+      <div class="mode-name">Clicking</div>
+      <div class="mode-desc">Múltiples objetivos. Elimínalos antes de que desaparezcan.</div>
+    </div>
+    <div class="mode-card" style="--card-color:#ff9500">
+      <span class="mode-icon">⚡</span>
+      <div class="mode-tag-lbl">FLICKING</div>
+      <div class="mode-name">Flick Shot</div>
+      <div class="mode-desc">Un objetivo a la vez. Reacciona rápido. Sin margen de error.</div>
+    </div>
+    <div class="mode-card" style="--card-color:#00ff88">
+      <span class="mode-icon">👁</span>
+      <div class="mode-tag-lbl">TRACKING</div>
+      <div class="mode-name">Tracking</div>
+      <div class="mode-desc">Apunta continuamente a un objetivo en movimiento constante.</div>
+    </div>
+    <div class="mode-card" style="--card-color:#ff3d71">
+      <span class="mode-icon">🔬</span>
+      <div class="mode-tag-lbl">PRECISION</div>
+      <div class="mode-name">Micro Shot</div>
+      <div class="mode-desc">Objetivos mínimos. Máxima precisión requerida.</div>
+    </div>
+    <div class="mode-card" style="--card-color:#a259ff">
+      <span class="mode-icon">↔</span>
+      <div class="mode-tag-lbl">STRAFE</div>
+      <div class="mode-name">Strafe Aim</div>
+      <div class="mode-desc">Objetivos que se mueven lateralmente a alta velocidad.</div>
+    </div>
+    <div class="mode-card" style="--card-color:#ffd700">
+      <span class="mode-icon">💀</span>
+      <div class="mode-tag-lbl">SURVIVAL</div>
+      <div class="mode-name">Supervivencia</div>
+      <div class="mode-desc">Sin tiempo. 3 vidas. Cada objetivo perdido cuesta una vida.</div>
+    </div>
+    <div class="mode-card" style="--card-color:#e040fb">
+      <span class="mode-icon">⊞</span>
+      <div class="mode-tag-lbl">GRIDSHOT</div>
+      <div class="mode-name">Grid Shot</div>
+      <div class="mode-desc">Cuadrícula de 8 objetivos. Elimina en orden lo más rápido posible.</div>
+    </div>
+    <div class="mode-card" style="--card-color:#ff6b35">
+      <span class="mode-icon">◀▶</span>
+      <div class="mode-tag-lbl">WIDE ANGLE</div>
+      <div class="mode-name">Wide Angle</div>
+      <div class="mode-desc">Objetivos en los extremos. Entrena movimientos amplios de muñeca.</div>
+    </div>
+  </div>
+</section>
+
+<div class="divider">◈ FEATURES ◈</div>
+
+<!-- FEATURES -->
+<section id="features">
+  <div class="reveal">
+    <div class="section-tag">◈ ¿POR QUÉ INA TRAINER?</div>
+    <h2 class="section-title">HECHO PARA <span>COMPETIR</span></h2>
+  </div>
+  <div class="features-grid reveal">
+    <div class="feature-card">
+      <div class="feature-icon">🏆</div>
+      <div class="feature-title">LEADERBOARD GLOBAL</div>
+      <div class="feature-desc">Compara tu puntaje con jugadores de todo el mundo. Tabla de récords por modo y dificultad en tiempo real.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">📊</div>
+      <div class="feature-title">ESTADÍSTICAS COMPLETAS</div>
+      <div class="feature-desc">Seguimiento de precisión, aciertos, combos y récords por modo. Ve tu progreso sesión a sesión.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">⚙</div>
+      <div class="feature-title">TOTALMENTE CONFIGURABLE</div>
+      <div class="feature-desc">Sensibilidad, tamaño de mira, color, tamaño de objetivos, velocidad y más. Adapta el juego a tu estilo.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🎮</div>
+      <div class="feature-title">3 DIFICULTADES</div>
+      <div class="feature-desc">Desde fácil para calentar hasta difícil para entrenamiento intenso. Objetivos más pequeños y rápidos.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🔫</div>
+      <div class="feature-title">MOTOR 3D REAL</div>
+      <div class="feature-desc">Renderizado 3D completo con Three.js. Objetivos esféricos, iluminación dinámica y efectos de disparo.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🚀</div>
+      <div class="feature-title">LAUNCHER CON UPDATES</div>
+      <div class="feature-desc">El launcher descarga automáticamente las últimas actualizaciones del juego. Siempre tendrás la versión más reciente.</div>
+    </div>
+  </div>
+</section>
+
+<!-- DOWNLOAD -->
+<div id="download" style="position:relative;z-index:5;padding:60px 48px 100px;">
+  <div class="dl-glow"></div>
+  <div class="dl-box reveal">
+    <div class="corner-deco tl"></div>
+    <div class="corner-deco tr"></div>
+    <div class="corner-deco bl"></div>
+    <div class="corner-deco br"></div>
+    <div class="dl-version">◈ VERSIÓN 1.0.0 · ESTABLE</div>
+    <div class="dl-title">DESCARGA EL LAUNCHER</div>
+    <div class="dl-subtitle">INSTALA · ABRE · ENTRENA</div>
+    <a href="https://download938.mediafire.com/prxaox51vgig6roVLls1BuvcuNc7GrOBFBOmbejW0TF_tPCeUXhPrdJgQdnBFC-c8smTY--Vj0ZIi7VgFVJ3M7SWQtHbrjAeeC72kaBO6bvdG-CAs0Khqks-gWEnYVXhJo3aw_15G3y57wERVGoT12K4_Tk35BiqLwdCMbaO0uo/13c7d2820osk5ws/inalaucher.rar" class="dl-btn">
+      ⬇ &nbsp;DESCARGAR AHORA
+    </a>
+    <div class="dl-info">
+      <div class="dl-info-item">PLATAFORMA: <span>WINDOWS 10/11</span></div>
+      <div class="dl-info-item">TAMAÑO: <span>~50 MB</span></div>
+      <div class="dl-info-item">PRECIO: <span>GRATIS</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-logo">INA TRAINER</div>
+  <div class="footer-copy">© 2025 INA TRAINER · ENTRENADOR FPS 3D</div>
+  <div class="footer-links">
+    <a href="#modos">MODOS</a>
+    <a href="#features">FEATURES</a>
+    <a href="#download">DESCARGAR</a>
+  </div>
+</footer>
+
+<script>
+// CUSTOM CURSOR
+const cursor = document.getElementById('cursor');
+document.addEventListener('mousemove', e => {
+  cursor.style.left = e.clientX + 'px';
+  cursor.style.top = e.clientY + 'px';
+});
+document.addEventListener('mousedown', () => cursor.classList.add('clicking'));
+document.addEventListener('mouseup', () => cursor.classList.remove('clicking'));
+
+// PARTICLES
+const container = document.getElementById('particles');
+for (let i = 0; i < 30; i++) {
+  const p = document.createElement('div');
+  p.className = 'particle';
+  p.style.left = Math.random() * 100 + '%';
+  p.style.animationDuration = (6 + Math.random() * 14) + 's';
+  p.style.animationDelay = (Math.random() * 10) + 's';
+  p.style.width = p.style.height = (Math.random() < 0.3 ? 3 : 2) + 'px';
+  const colors = ['var(--accent)', 'var(--accent3)', 'var(--green)', 'var(--accent2)'];
+  p.style.background = colors[Math.floor(Math.random() * colors.length)];
+  container.appendChild(p);
+}
+
+// SCROLL REVEAL
+const reveals = document.querySelectorAll('.reveal');
+const observer = new IntersectionObserver(entries => {
+  entries.forEach((entry, i) => {
+    if (entry.isIntersecting) {
+      setTimeout(() => entry.target.classList.add('visible'), i * 80);
+    }
+  });
+}, { threshold: 0.1 });
+reveals.forEach(el => observer.observe(el));
+</script>
+</body>
+</html>
