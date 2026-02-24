@@ -1,0 +1,9 @@
+{
+  "version": "1.0.0",
+  "downloadUrl": "https://drive.google.com/uc?export=download&id=1GPjYpDLTBg4QzXAUP9JpVkR51sRYhpWJ",
+  "changelog": [
+    { "version": "v1.0.0", "text": "Lanzamiento inicial del juego" },
+    { "version": "v1.0.0", "text": "8 modos de entrenamiento disponibles" },
+    { "version": "v1.0.0", "text": "Leaderboard global integrado" }
+  ]
+}
