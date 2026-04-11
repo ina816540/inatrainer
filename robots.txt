@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://ina816540.github.io/inatrainer/sitemap.xml
